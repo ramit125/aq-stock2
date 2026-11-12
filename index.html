@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f6f7f1" />
+    <meta name="description" content="Browse orthopedic products, general medicines, injections, and medical supplies at AQUA CHEMI." />
+    <title>AQUA CHEMI | Medical Stock</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
+    <script src="config.js" defer></script>
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="#top" aria-label="AQUA CHEMI home">
+        <span class="brand-mark" aria-hidden="true">AC</span>
+        <span>AQUA <span class="brand-light">CHEMI</span></span>
+      </a>
+      <div class="topbar-right">
+        <span class="shop-status"><span class="status-dot"></span> MRP pricing</span>
+        <span class="sync-state" id="sync-status" role="status">Checking stock…</span>
+        <button class="qr-button" id="qr-open" type="button" title="Open customer stock QR">
+          <span aria-hidden="true">▦</span><span>Customer QR</span>
+        </button>
+        <button class="mode-button" id="mode-toggle" type="button" aria-pressed="false">
+          <span class="mode-icon" aria-hidden="true">⌘</span>
+          <span id="mode-label">Shopkeeper mode</span>
+        </button>
+      </div>
+    </header>
+
+    <main id="top">
+      <section class="intro" aria-labelledby="page-title">
+        <div class="intro-copy">
+          <p class="eyebrow"><span class="eyebrow-line"></span> ORTHOPEDIC · GENERAL MEDICINE · INJECTIONS</p>
+          <h1 id="page-title">Care essentials,<br /><em>in stock.</em></h1>
+          <p class="intro-text">Orthopedic supports, general medicines, injections, and surgical supplies with current stock and MRP.</p>
+        </div>
+        <div class="intro-aside" aria-label="Store information">
+          <div class="open-stamp"><span class="stamp-sun" aria-hidden="true">✚</span><span>MRP<br />& STOCK</span></div>
+          <p>Prices are shown at MRP. Prescription items follow local requirements.</p>
+        </div>
+      </section>
+
+      <section class="catalog" aria-label="Shop catalog">
+        <div class="catalog-heading">
+          <div>
+            <p class="section-kicker">MEDICINES & MEDICAL SUPPLIES</p>
+            <h2>Available stock<span class="heading-period">.</span></h2>
+          </div>
+          <p class="result-count" id="result-count" aria-live="polite"></p>
+        </div>
+
+        <div class="toolbar">
+          <label class="search-box" for="search-input">
+            <span class="search-icon" aria-hidden="true">⌕</span>
+            <input id="search-input" type="search" placeholder="Search medicines and supplies" autocomplete="off" />
+            <kbd>/</kbd>
+          </label>
+          <label class="sort-control" for="sort-select">
+            <span>Sort by</span>
+            <select id="sort-select">
+              <option value="featured">Featured</option>
+              <option value="name">Name</option>
+              <option value="price-low">MRP: low to high</option>
+              <option value="price-high">MRP: high to low</option>
+            </select>
+          </label>
+          <label class="company-control" for="company-filter">
+            <span>Company</span>
+            <select id="company-filter" aria-label="Filter by company">
+              <option value="All companies">All companies</option>
+            </select>
+          </label>
+          <button class="add-button" id="add-item" type="button" hidden>
+            <span aria-hidden="true">＋</span> Add item
+          </button>
+          <button class="manage-categories-button" id="manage-categories" type="button" hidden>Manage categories</button>
+          <button class="order-button" id="open-order" type="button" aria-haspopup="dialog">
+            Order <span id="order-count">0</span>
+          </button>
+        </div>
+
+        <nav class="category-list" id="category-list" aria-label="Filter by category"></nav>
+        <div class="product-grid" id="product-grid" aria-live="polite"></div>
+        <div class="empty-state" id="empty-state" hidden>
+          <span class="empty-mark" aria-hidden="true">⌕</span>
+          <h3>No products found</h3>
+          <p>Try a different search or category.</p>
+          <button id="clear-filters" type="button">Clear filters</button>
+        </div>
+      </section>
+
+      <footer class="page-footer">
+        <span>AQUA CHEMI <span class="footer-dot">·</span> MRP & STOCK</span>
+        <span id="footer-stock"></span>
+      </footer>
+    </main>
+
+    <dialog class="item-dialog" id="item-dialog" aria-labelledby="dialog-title">
+      <form id="item-form">
+        <div class="dialog-header">
+          <div>
+            <p class="section-kicker">SHOPKEEPER TOOLS</p>
+            <h2 id="dialog-title">Add an item</h2>
+          </div>
+          <button class="close-button" id="close-dialog" type="button" aria-label="Close dialog">×</button>
+        </div>
+        <input id="item-id" type="hidden" />
+        <label class="field full-field" for="item-name">Product name
+          <input id="item-name" name="name" type="text" maxlength="180" required placeholder="e.g. Knee support brace" />
+        </label>
+        <p class="field-help company-help">Choose a saved company or type a new one. Use the same product name and category to group companies as variants.</p>
+        <div class="field-row">
+          <label class="field" for="item-company">Company / brand
+            <input id="item-company" name="company" type="text" maxlength="60" list="company-options" placeholder="Choose or type a company" />
+            <datalist id="company-options"></datalist>
+          </label>
+          <label class="field" for="item-sizes">Available sizes
+            <input id="item-sizes" name="sizes" type="text" maxlength="120" placeholder="e.g. S, M, L, XL" aria-describedby="size-help" />
+          </label>
+        </div>
+        <p class="field-help" id="size-help">Separate sizes with commas. Stock is tracked for the whole product.</p>
+        <div class="field-row">
+          <label class="field" for="item-category">Category
+            <select id="item-category" name="category" required></select>
+          </label>
+          <label class="field" for="item-emoji">Product icon
+            <input id="item-emoji" name="emoji" type="text" maxlength="4" required value="📦" aria-describedby="icon-help" />
+          </label>
+        </div>
+        <p class="field-help" id="icon-help">Choose a small emoji to identify the product.</p>
+        <div class="field full-field">
+          <label class="field" for="item-image">Product image
+            <input id="item-image" name="image" type="file" accept="image/*" />
+          </label>
+          <input id="item-camera" type="file" accept="image/*" capture="environment" hidden />
+          <button class="category-action-button" id="capture-item-image" type="button" aria-controls="item-camera">Take photo with camera</button>
+          <div class="image-preview-row">
+            <img id="item-image-preview" alt="Selected product preview" hidden />
+            <button class="category-action-button delete" id="remove-item-image" type="button" hidden>Remove image</button>
+          </div>
+          <p class="field-help" id="image-help">Choose a photo or take one with your device camera (maximum 5 MB). Customers will see it in the catalog.</p>
+        </div>
+        <div class="field-row">
+          <label class="field" for="item-price">MRP (₹)
+            <input id="item-price" name="price" type="number" min="0" step="0.01" placeholder="Leave blank if unknown" />
+            <span class="field-help">Leave blank if Tally has no MRP for this item.</span>
+          </label>
+          <label class="field" for="item-availability">Customer availability
+            <select id="item-availability" name="availability" required>
+              <option value="true">Available</option>
+              <option value="false">Not available</option>
+            </select>
+            <span class="field-help">Customers see this status, not the inventory count.</span>
+          </label>
+          <label class="field" for="item-stock">Inventory quantity
+            <input id="item-stock" name="stock" type="number" min="0" step="1" required placeholder="0" />
+            <span class="field-help">Shopkeeper-only; used to check order quantities.</span>
+          </label>
+        </div>
+        <label class="field full-field" for="item-description">Short description
+          <textarea id="item-description" name="description" maxlength="120" rows="2" placeholder="A few words about this item"></textarea>
+        </label>
+        <div class="dialog-actions">
+          <button class="cancel-button" id="cancel-dialog" type="button">Cancel</button>
+          <button class="save-button" type="submit">Save item</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog class="item-dialog variants-dialog" id="variants-dialog" aria-labelledby="variants-title">
+      <div class="dialog-header">
+        <div>
+          <p class="section-kicker" id="variants-category"></p>
+          <h2 id="variants-title"></h2>
+        </div>
+        <button class="close-button" id="close-variants" type="button" aria-label="Close product options">×</button>
+      </div>
+      <p class="variants-intro">Choose a company and size to see its current price and availability.</p>
+      <div class="variant-list" id="variant-list"></div>
+      <div class="dialog-actions variant-customer-actions">
+        <button class="cancel-button" id="close-variants-shopping" type="button">Continue browsing</button>
+        <button class="save-button" id="review-order-from-variants" type="button">Review order <span id="variant-order-count">0</span></button>
+      </div>
+      <div class="dialog-actions variant-manager-actions" id="variant-manager-actions" hidden>
+        <button class="save-button" id="add-company-variant" type="button">＋ Add company variant</button>
+      </div>
+    </dialog>
+    <dialog class="item-dialog category-dialog" id="category-dialog" aria-labelledby="category-title">
+      <div class="dialog-header">
+        <div>
+          <p class="section-kicker">SHOPKEEPER TOOLS</p>
+          <h2 id="category-title">Manage categories</h2>
+        </div>
+        <button class="close-button" id="close-categories" type="button" aria-label="Close categories">×</button>
+      </div>
+      <form class="category-add-form" id="category-form">
+        <label class="field" for="new-category-name">New category
+          <input id="new-category-name" name="category" type="text" maxlength="60" required placeholder="e.g. First aid" />
+        </label>
+        <button class="save-button" type="submit">Add category</button>
+      </form>
+      <p class="field-help">To delete a category, first move or delete all its products.</p>
+      <div class="category-manager-list" id="category-manager-list"></div>
+    </dialog>
+    <dialog class="item-dialog order-dialog" id="order-dialog" aria-labelledby="order-title">
+      <form id="order-form">
+        <div class="dialog-header">
+          <div>
+            <p class="section-kicker">CUSTOMER ORDER</p>
+            <h2 id="order-title">Your order</h2>
+          </div>
+          <button class="close-button" id="close-order" type="button" aria-label="Close order">×</button>
+        </div>
+        <div class="order-lines" id="order-lines" aria-live="polite"></div>
+        <p class="order-total" id="order-total"></p>
+        <label class="field full-field" for="customer-name">Your name
+          <input id="customer-name" name="customerName" type="text" maxlength="80" required autocomplete="name" />
+        </label>
+        <label class="field full-field" for="customer-phone">Your phone (optional)
+          <input id="customer-phone" name="customerPhone" type="tel" maxlength="30" autocomplete="tel" />
+        </label>
+        <label class="field full-field" for="order-notes">Order note (optional)
+          <textarea id="order-notes" name="notes" maxlength="300" rows="2" placeholder="Any questions or delivery details"></textarea>
+        </label>
+        <p class="field-help">WhatsApp will open with your order ready to send. Stock and final prices are confirmed by the shopkeeper.</p>
+        <div class="dialog-actions">
+          <button class="cancel-button" id="continue-shopping" type="button">Continue shopping</button>
+          <button class="save-button" id="send-order" type="submit">Send with WhatsApp</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog class="item-dialog password-dialog" id="password-dialog" aria-labelledby="password-title">
+      <form id="password-form">
+        <div class="dialog-header">
+          <div>
+            <p class="section-kicker">SHOPKEEPER TOOLS</p>
+            <h2 id="password-title">Shopkeeper access</h2>
+          </div>
+          <button class="close-button" id="close-password" type="button" aria-label="Close password dialog">×</button>
+        </div>
+        <label class="field full-field" for="shopkeeper-password">Password
+          <input id="shopkeeper-password" name="password" type="password" autocomplete="current-password" required />
+        </label>
+        <p class="password-error" id="password-error" role="alert" hidden>That password isn’t correct. Try again.</p>
+        <div class="dialog-actions">
+          <button class="cancel-button" id="cancel-password" type="button">Cancel</button>
+          <button class="save-button" type="submit">Continue</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog class="item-dialog password-dialog" id="login-dialog" aria-labelledby="login-title">
+      <form id="login-form">
+        <div class="dialog-header">
+          <div>
+            <p class="section-kicker">SECURE INVENTORY ACCESS</p>
+            <h2 id="login-title">Shopkeeper sign in</h2>
+          </div>
+          <button class="close-button" id="close-login" type="button" aria-label="Close sign-in dialog">×</button>
+        </div>
+        <label class="field full-field" for="login-email">Email
+          <input id="login-email" name="email" type="email" autocomplete="username" required />
+        </label>
+        <label class="field full-field" for="login-password">Password
+          <input id="login-password" name="password" type="password" autocomplete="current-password" required />
+        </label>
+        <p class="password-error" id="login-error" role="alert" hidden></p>
+        <div class="dialog-actions">
+          <button class="cancel-button" id="cancel-login" type="button">Cancel</button>
+          <button class="save-button" type="submit">Sign in</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog class="item-dialog qr-dialog" id="qr-dialog" aria-labelledby="qr-title">
+      <div class="dialog-header">
+        <div>
+          <p class="section-kicker">ONE QR · LIVE STOCK</p>
+          <h2 id="qr-title">Customer stock QR</h2>
+        </div>
+        <button class="close-button" id="close-qr" type="button" aria-label="Close QR dialog">×</button>
+      </div>
+      <p class="qr-intro">Scan this same code any time to see the latest shared stock.</p>
+      <div class="qr-frame" id="qr-frame"><div id="qr-code" aria-label="QR code for the AQUA CHEMI catalog"></div></div>
+      <p class="qr-status" id="qr-status" role="status"></p>
+      <p class="qr-url" id="qr-url"></p>
+      <div class="dialog-actions">
+        <button class="cancel-button" id="copy-catalog-link" type="button">Copy link</button>
+        <button class="save-button" id="download-qr" type="button">Download QR</button>
+      </div>
+    </dialog>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  </body>
+</html>
